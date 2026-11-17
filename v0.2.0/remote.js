@@ -48,8 +48,12 @@ var e = "ucjc:descubrimiento:anadir-al-carrito@1", t = "ucjc:identidad:sesion-ca
   h2 { font-size:20px; margin:0 0 4px; }
   .sub { margin:0 0 16px; color:#555; font-size:14px; }
   .box { background:#fff; border:1px solid #ccc; border-radius:10px; padding:16px; }
+  .lista { height:180px; overflow-y:auto; border-bottom:1px solid #eee; }
+  .lista::-webkit-scrollbar { width:10px; }
+  .lista::-webkit-scrollbar-track { background:#f0f0f0; border-radius:5px; }
+  .lista::-webkit-scrollbar-thumb { background:#b5bcc8; border-radius:5px; }
   table { width:100%; border-collapse:collapse; }
-  th { text-align:left; font-size:13px; color:#555; border-bottom:1px solid #d5d9e0; padding:6px 4px; }
+  th { position:sticky; top:0; background:#fff; text-align:left; font-size:13px; color:#555; border-bottom:1px solid #d5d9e0; padding:6px 4px; }
   td { padding:8px 4px; border-bottom:1px solid #eee; }
   .r { text-align:right; }
   .vacio { color:#777; font-style:italic; }
@@ -65,10 +69,10 @@ var e = "ucjc:descubrimiento:anadir-al-carrito@1", t = "ucjc:identidad:sesion-ca
         <h2>Carrito</h2>
         <p class="sub">Revisa los productos antes de confirmar el pedido.</p>
         <div class="box">
-          <table>
+          <div class="lista"><table>
             <tr><th>Producto</th><th class="r">Cantidad</th><th class="r">Precio</th></tr>
             ${t}
-          </table>
+          </table></div>
           <p class="total"><b>Total: ${this.#a().toFixed(2)} €</b></p>
           <div class="row">
             <button type="button" data-a="demo">+ Producto demo</button>
