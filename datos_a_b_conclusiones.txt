@@ -1,0 +1,5 @@
+Diferencias entre ambas versiones:
+
+La diferencia entre ambas es; mientras que en A se genera correctamente un codigo de pedido
+y un ID, sólamente se listan la cantidad de elementos como “n lineas”. El prototipo
+B lista unicamente el primer elemento añadido al carrito, junto al total en euros y un código genérico de pedido.
