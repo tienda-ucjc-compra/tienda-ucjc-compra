@@ -1,3 +1,4 @@
+
 const EVT_ADD = 'ucjc:descubrimiento:anadir-al-carrito@1';
 const EVT_SES = 'ucjc:identidad:sesion-cambiada@1';
 const EVT_PED = 'ucjc:compra:pedido-confirmado@1';
@@ -14,6 +15,11 @@ const css = `
   button.sec { background:#e7ecf3; color:#152033; }
   button:disabled { opacity:.45; cursor:not-allowed; }
   .ok { color:#0b6b3a; font-size:.85rem; min-height:1.2em; }
+
+  .aviso-error {
+    color:#c62828;
+    font-weight:700;
+  }
 `;
 
 class UcjcCompra extends HTMLElement {
@@ -57,8 +63,10 @@ class UcjcCompra extends HTMLElement {
 
   #confirmar() {
     if (!this.#usuarioId || !this.#lineas.length) return;
+
     const pedidoId = `PED-${Date.now()}`;
     const lineas = this.#lineas.map((l) => ({ ...l }));
+
     const detail = {
       pedidoId,
       usuarioId: this.#usuarioId,
@@ -66,7 +74,9 @@ class UcjcCompra extends HTMLElement {
       total: Number(this.#total().toFixed(2)),
       lineas,
     };
+
     window.dispatchEvent(new CustomEvent(EVT_PED, { detail }));
+
     this.#lineas = [];
     this.#flash = `Pedido ${pedidoId} confirmado (${detail.total.toFixed(2)} €)`;
     this.#pintar();
@@ -75,7 +85,8 @@ class UcjcCompra extends HTMLElement {
   #pintar() {
     const ses = this.#usuarioId
       ? `Sesión: <b>${this.#usuarioId}</b>`
-      : 'Sin sesión — inicia sesión en Identidad para confirmar';
+      : '<span class="aviso-error">Inicio de sesión necesario para realizar el pedido</span>';
+
     const items = this.#lineas.length
       ? this.#lineas
           .map(
@@ -83,7 +94,7 @@ class UcjcCompra extends HTMLElement {
               `<li>${l.nombre} × ${l.cantidad} · ${(l.precio * l.cantidad).toFixed(2)} €</li>`
           )
           .join('')
-      : '<li><i>Carrito vacío — espera un «añadir» de Descubrimiento o usa el botón demo</i></li>';
+      : '<li><i>No puedes confirmar el pedido porque el carrito está vacío. Añade al menos un producto desde Descubrimiento o usa el botón «+ producto demo».</i></li>';
 
     this.shadowRoot.innerHTML = `
       <style>${css}</style>
@@ -112,7 +123,9 @@ class UcjcCompra extends HTMLElement {
         },
       });
     };
+
     this.shadowRoot.querySelector('[data-a="ok"]').onclick = () => this.#confirmar();
+
     this.shadowRoot.querySelector('[data-a="vaciar"]').onclick = () => {
       this.#lineas = [];
       this.#flash = 'Carrito vacío';
