@@ -60,17 +60,54 @@ describe('ucjc-compra', () => {
     expect(lineas[0].querySelector('.sub').textContent).toBe('17.97 €');
   });
 
-  it('con descuento muestra original tachado, % en rojo y precio descontado', () => {
+  const campana = (activa) =>
+    window.dispatchEvent(
+      new CustomEvent('ucjc:descubrimiento:campana-cambiada@1', {
+        detail: { activa, codigo: 'black-friday-2026', etiqueta: 'Black Friday UCJC', momento: '2026-11-27T09:00:00+01:00' },
+      })
+    );
+
+  it('en Black Friday muestra el original tachado, el rebajado en rojo y el %', () => {
     const el = document.createElement('ucjc-compra');
     document.body.appendChild(el);
-    anadir({ productoId: 'taza', nombre: 'Taza graduación', precio: 10, cantidad: 3, descuento: 20 });
+    campana(true);
+    // Descubrimiento manda la taza (9.95 €, -40%) ya rebajada
+    anadir({ productoId: 'prod-107', nombre: 'Taza de graduación', precio: 5.97, cantidad: 3 });
 
     const li = el.shadowRoot.querySelector('li.linea');
-    expect(li.querySelector('.tachado').textContent).toBe('10.00 €');
-    expect(li.querySelector('.dto').textContent).toBe('-20%');
-    expect(li.querySelector('.desc').textContent).toBe('8.00 €');
-    expect(li.querySelector('.sub').textContent).toBe('24.00 €');
-    expect(el.shadowRoot.querySelector('.total b').textContent).toBe('Total: 24.00 €');
+    expect(li.querySelector('.tachado').textContent).toBe('9.95 €');
+    expect(li.querySelector('.desc').textContent).toBe('5.97 €');
+    expect(li.querySelector('.dto').textContent).toBe('-40%');
+    expect(li.querySelector('.sub').textContent).toBe('17.91 €');
+    expect(el.shadowRoot.querySelector('.total b').textContent).toBe('Total: 17.91 €');
+  });
+
+  it('sin campaña activa no se marca ninguna rebaja', () => {
+    const el = document.createElement('ucjc-compra');
+    document.body.appendChild(el);
+    anadir({ productoId: 'prod-107', nombre: 'Taza de graduación', precio: 9.95, cantidad: 1 });
+    expect(el.shadowRoot.querySelector('.tachado')).toBeNull();
+  });
+
+  it('X elimina la línea y − / + cambian la cantidad', () => {
+    const el = document.createElement('ucjc-compra');
+    document.body.appendChild(el);
+    anadir({ productoId: 'a', nombre: 'A', precio: 2, cantidad: 1 });
+    anadir({ productoId: 'b', nombre: 'B', precio: 3, cantidad: 3 });
+    const root = el.shadowRoot;
+    // con una unidad solo hay X
+    expect(root.querySelectorAll('li.linea')[0].querySelector('[data-a="mas"]')).toBeNull();
+
+    root.querySelectorAll('li.linea')[1].querySelector('[data-a="mas"]').click();
+    expect(root.querySelectorAll('li.linea')[1].querySelector('.sub').textContent).toBe('12.00 €');
+    root.querySelectorAll('li.linea')[1].querySelector('[data-a="menos"]').click();
+    root.querySelectorAll('li.linea')[1].querySelector('[data-a="menos"]').click();
+    expect(root.querySelectorAll('li.linea')[1].querySelector('.sub').textContent).toBe('6.00 €');
+
+    root.querySelectorAll('li.linea')[0].querySelector('[data-a="quitar"]').click();
+    expect(root.querySelectorAll('li.linea')).toHaveLength(1);
+    expect(root.querySelector('.nombre').textContent).toBe('B');
+    expect(root.querySelector('.total b').textContent).toBe('Total: 6.00 €');
   });
 
   it('el pedido lleva exactamente los campos de pedido-confirmado@1', () => {
@@ -83,26 +120,21 @@ describe('ucjc-compra', () => {
         detail: { autenticado: true, usuario: { id: 'u-2', email: 'b@ucjc.edu' } },
       })
     );
-    anadir({ productoId: 'p1', nombre: 'Taza', precio: 10, cantidad: 1, descuento: 20 });
+    campana(true);
+    anadir({ productoId: 'prod-107', nombre: 'Taza', precio: 5.97, cantidad: 1 });
     el.shadowRoot.querySelector('[data-a="ok"]').click();
     window.removeEventListener('ucjc:compra:pedido-confirmado@1', spy);
 
     const detail = spy.mock.calls[0][0].detail;
     expect(Object.keys(detail).sort()).toEqual(['creadoEn', 'lineas', 'pedidoId', 'total', 'usuarioId']);
     expect(new Date(detail.creadoEn).toISOString()).toBe(detail.creadoEn);
-    expect(detail.lineas[0]).toEqual({ productoId: 'p1', nombre: 'Taza', precio: 8, cantidad: 1 });
-    expect(detail.total).toBe(8);
+    expect(detail.lineas[0]).toEqual({ productoId: 'prod-107', nombre: 'Taza', precio: 5.97, cantidad: 1 });
+    expect(detail.total).toBe(5.97);
   });
 
   it('escucha campana-cambiada@1 y muestra u oculta el aviso', () => {
     const el = document.createElement('ucjc-compra');
     document.body.appendChild(el);
-    const campana = (activa) =>
-      window.dispatchEvent(
-        new CustomEvent('ucjc:descubrimiento:campana-cambiada@1', {
-          detail: { activa, codigo: 'black-friday-2026', etiqueta: 'Black Friday UCJC', momento: '2026-11-27T09:00:00+01:00' },
-        })
-      );
     campana(true);
     expect(el.shadowRoot.querySelector('.campana b').textContent).toBe('Black Friday UCJC');
     expect(el.shadowRoot.querySelector('.box').classList.contains('bf')).toBe(true);
