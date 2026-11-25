@@ -2,6 +2,11 @@
 const EVT_ADD = 'ucjc:descubrimiento:anadir-al-carrito@1';
 const EVT_SES = 'ucjc:identidad:sesion-cambiada@1';
 const EVT_PED = 'ucjc:compra:pedido-confirmado@1';
+const EVT_CAMPANA = 'ucjc:descubrimiento:campana-cambiada@1';
+
+// los textos que llegan por eventos se escapan antes de meterlos en el HTML
+const escapar = (t) =>
+  String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
 const css = `
   :host { display:block; font:15px/1.45 system-ui,sans-serif; color:#152033; }
@@ -22,6 +27,7 @@ const css = `
   button { font:inherit; border:0; border-radius:8px; padding:.45rem .85rem; cursor:pointer; background:#0f3d7a; color:#fff; }
   button.sec { background:#e7ecf3; color:#152033; }
   button:disabled { opacity:.45; cursor:not-allowed; }
+  .campana { background:#c62828; color:#fff; font-weight:700; border-radius:8px; padding:.4rem .75rem; margin:0 0 .75rem; }
   .ok { color:#0b6b3a; font-size:.85rem; min-height:1.2em; }
 
   .aviso-error {
@@ -34,6 +40,7 @@ class UcjcCompra extends HTMLElement {
   #lineas = [];
   #usuarioId = null;
   #flash = '';
+  #campana = null;
 
   #onAdd = (e) => {
     const d = e.detail || {};
@@ -70,16 +77,25 @@ class UcjcCompra extends HTMLElement {
     this.#pintar();
   };
 
+  #onCampana = (e) => {
+    const d = e.detail || {};
+    this.#campana = d.activa ? { codigo: d.codigo, etiqueta: d.etiqueta || 'Campaña activa' } : null;
+    this.#pintar();
+  };
+
   connectedCallback() {
-    this.attachShadow({ mode: 'open' });
+    // si el shell quita y vuelve a poner el elemento, el shadowRoot ya existe
+    if (!this.shadowRoot) this.attachShadow({ mode: 'open' });
     window.addEventListener(EVT_ADD, this.#onAdd);
     window.addEventListener(EVT_SES, this.#onSes);
+    window.addEventListener(EVT_CAMPANA, this.#onCampana);
     this.#pintar();
   }
 
   disconnectedCallback() {
     window.removeEventListener(EVT_ADD, this.#onAdd);
     window.removeEventListener(EVT_SES, this.#onSes);
+    window.removeEventListener(EVT_CAMPANA, this.#onCampana);
   }
 
   #total() {
@@ -90,7 +106,8 @@ class UcjcCompra extends HTMLElement {
     if (!this.#usuarioId || !this.#lineas.length) return;
 
     const pedidoId = `PED-${Date.now()}`;
-    const lineas = this.#lineas.map((l) => ({ ...l }));
+    // solo los 4 campos del contrato pedido-confirmado@1
+    const lineas = this.#lineas.map(({ productoId, nombre, precio, cantidad }) => ({ productoId, nombre, precio, cantidad }));
 
     const detail = {
       pedidoId,
@@ -109,7 +126,7 @@ class UcjcCompra extends HTMLElement {
 
   #pintar() {
     const ses = this.#usuarioId
-      ? `Sesión: <b>${this.#usuarioId}</b>`
+      ? `Sesión: <b>${escapar(this.#usuarioId)}</b>`
       : '<span class="aviso-error">Inicio de sesión necesario para realizar el pedido</span>';
 
     const items = this.#lineas.length
@@ -118,7 +135,7 @@ class UcjcCompra extends HTMLElement {
             const unit = l.descuento
               ? `<span class="tachado">${l.precioOriginal.toFixed(2)} €</span><span class="dto">-${l.descuento}%</span><span class="desc">${l.precio.toFixed(2)} €</span>`
               : `${l.precio.toFixed(2)} €`;
-            return `<li class="linea"><span class="nombre">${l.nombre}</span><span class="unit">${l.cantidad} × ${unit}</span><span class="sub">${(l.precio * l.cantidad).toFixed(2)} €</span></li>`;
+            return `<li class="linea"><span class="nombre">${escapar(l.nombre)}</span><span class="unit">${l.cantidad} × ${unit}</span><span class="sub">${(l.precio * l.cantidad).toFixed(2)} €</span></li>`;
           })
           .join('')
       : '<li><i>No puedes confirmar el pedido porque el carrito está vacío. Añade al menos un producto desde Descubrimiento o usa el botón «+ producto demo».</i></li>';
@@ -127,6 +144,7 @@ class UcjcCompra extends HTMLElement {
       <style>${css}</style>
       <div class="box">
         <h2>Compra</h2>
+        ${this.#campana ? `<p class="campana">${escapar(this.#campana.etiqueta)}</p>` : ''}
         <p class="meta">${ses}</p>
         <ul class="lineas">${items}</ul>
         <p><b>Total: ${this.#total().toFixed(2)} €</b></p>
@@ -137,7 +155,7 @@ class UcjcCompra extends HTMLElement {
           </button>
           <button type="button" data-a="vaciar" class="sec" ${this.#lineas.length ? '' : 'disabled'}>Vaciar</button>
         </div>
-        <p class="ok">${this.#flash}</p>
+        <p class="ok">${escapar(this.#flash)}</p>
       </div>`;
 
     this.shadowRoot.querySelector('[data-a="demo"]').onclick = () => {

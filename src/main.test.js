@@ -72,4 +72,56 @@ describe('ucjc-compra', () => {
     expect(li.querySelector('.sub').textContent).toBe('24.00 €');
     expect(el.shadowRoot.querySelector('.box > p b').textContent).toBe('Total: 24.00 €');
   });
+
+  it('el pedido lleva exactamente los campos de pedido-confirmado@1', () => {
+    const el = document.createElement('ucjc-compra');
+    document.body.appendChild(el);
+    const spy = vi.fn();
+    window.addEventListener('ucjc:compra:pedido-confirmado@1', spy);
+    window.dispatchEvent(
+      new CustomEvent('ucjc:identidad:sesion-cambiada@1', {
+        detail: { autenticado: true, usuario: { id: 'u-2', email: 'b@ucjc.edu' } },
+      })
+    );
+    anadir({ productoId: 'p1', nombre: 'Taza', precio: 10, cantidad: 1, descuento: 20 });
+    el.shadowRoot.querySelector('[data-a="ok"]').click();
+    window.removeEventListener('ucjc:compra:pedido-confirmado@1', spy);
+
+    const detail = spy.mock.calls[0][0].detail;
+    expect(Object.keys(detail).sort()).toEqual(['creadoEn', 'lineas', 'pedidoId', 'total', 'usuarioId']);
+    expect(new Date(detail.creadoEn).toISOString()).toBe(detail.creadoEn);
+    expect(detail.lineas[0]).toEqual({ productoId: 'p1', nombre: 'Taza', precio: 8, cantidad: 1 });
+    expect(detail.total).toBe(8);
+  });
+
+  it('escucha campana-cambiada@1 y muestra u oculta el aviso', () => {
+    const el = document.createElement('ucjc-compra');
+    document.body.appendChild(el);
+    const campana = (activa) =>
+      window.dispatchEvent(
+        new CustomEvent('ucjc:descubrimiento:campana-cambiada@1', {
+          detail: { activa, codigo: 'black-friday-2026', etiqueta: 'Black Friday UCJC', momento: '2026-11-27T09:00:00+01:00' },
+        })
+      );
+    campana(true);
+    expect(el.shadowRoot.querySelector('.campana').textContent).toBe('Black Friday UCJC');
+    campana(false);
+    expect(el.shadowRoot.querySelector('.campana')).toBeNull();
+  });
+
+  it('escapa el nombre del producto', () => {
+    const el = document.createElement('ucjc-compra');
+    document.body.appendChild(el);
+    anadir({ productoId: 'x', nombre: '<img src=x onerror=alert(1)>', precio: 1, cantidad: 1 });
+    expect(el.shadowRoot.querySelector('img')).toBeNull();
+    expect(el.shadowRoot.querySelector('.nombre').textContent).toBe('<img src=x onerror=alert(1)>');
+  });
+
+  it('se puede quitar y volver a poner sin error', () => {
+    const el = document.createElement('ucjc-compra');
+    document.body.appendChild(el);
+    el.remove();
+    expect(() => document.body.appendChild(el)).not.toThrow();
+    expect(el.shadowRoot.querySelector('h2').textContent).toBe('Compra');
+  });
 });
