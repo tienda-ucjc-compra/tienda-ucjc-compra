@@ -43,4 +43,33 @@ describe('ucjc-compra', () => {
     expect(detail.lineas).toHaveLength(1);
     expect(detail.pedidoId).toMatch(/^PED-/);
   });
+
+  const anadir = (detail) =>
+    window.dispatchEvent(new CustomEvent('ucjc:descubrimiento:anadir-al-carrito@1', { detail }));
+
+  it('agrupa el mismo artículo en una sola línea "nombre  3 × precio  total"', () => {
+    const el = document.createElement('ucjc-compra');
+    document.body.appendChild(el);
+    anadir({ productoId: 'taza', nombre: 'Taza graduación', precio: 5.99, cantidad: 1 });
+    anadir({ productoId: 'taza', nombre: 'Taza graduación', precio: 5.99, cantidad: 2 });
+
+    const lineas = el.shadowRoot.querySelectorAll('li.linea');
+    expect(lineas).toHaveLength(1);
+    expect(lineas[0].querySelector('.nombre').textContent).toBe('Taza graduación');
+    expect(lineas[0].querySelector('.unit').textContent).toBe('3 × 5.99 €');
+    expect(lineas[0].querySelector('.sub').textContent).toBe('17.97 €');
+  });
+
+  it('con descuento muestra original tachado, % en rojo y precio descontado', () => {
+    const el = document.createElement('ucjc-compra');
+    document.body.appendChild(el);
+    anadir({ productoId: 'taza', nombre: 'Taza graduación', precio: 10, cantidad: 3, descuento: 20 });
+
+    const li = el.shadowRoot.querySelector('li.linea');
+    expect(li.querySelector('.tachado').textContent).toBe('10.00 €');
+    expect(li.querySelector('.dto').textContent).toBe('-20%');
+    expect(li.querySelector('.desc').textContent).toBe('8.00 €');
+    expect(li.querySelector('.sub').textContent).toBe('24.00 €');
+    expect(el.shadowRoot.querySelector('.box > p b').textContent).toBe('Total: 24.00 €');
+  });
 });

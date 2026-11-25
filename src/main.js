@@ -10,6 +10,14 @@ const css = `
   .meta { color:#5b677a; font-size:.85rem; margin-bottom:.75rem; }
   ul { margin:.4rem 0 .8rem; padding-left:1.1rem; }
   li { margin:.2rem 0; }
+  li.linea { list-style:none; display:grid; grid-template-columns:1fr auto auto; gap:.2rem .9rem; align-items:start; margin:.55rem 0; }
+  ul.lineas { padding-left:0; }
+  .nombre { word-break:break-word; }
+  .unit { text-align:right; white-space:nowrap; }
+  .tachado { text-decoration:line-through; color:#5b677a; }
+  .dto { color:#c62828; font-weight:700; margin-left:.35rem; }
+  .desc { display:block; }
+  .sub { text-align:right; font-weight:700; white-space:nowrap; }
   .row { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; }
   button { font:inherit; border:0; border-radius:8px; padding:.45rem .85rem; cursor:pointer; background:#0f3d7a; color:#fff; }
   button.sec { background:#e7ecf3; color:#152033; }
@@ -29,12 +37,29 @@ class UcjcCompra extends HTMLElement {
 
   #onAdd = (e) => {
     const d = e.detail || {};
-    this.#lineas.push({
-      productoId: String(d.productoId ?? ''),
-      nombre: String(d.nombre ?? 'Producto'),
-      precio: Number(d.precio) || 0,
-      cantidad: Math.max(1, Number(d.cantidad) || 1),
-    });
+    const productoId = String(d.productoId ?? '');
+    const nombre = String(d.nombre ?? 'Producto');
+    const original = Number(d.precio) || 0;
+    const cantidad = Math.max(1, Number(d.cantidad) || 1);
+    // descuento opcional en % (0-100). `precio` llega siempre como precio original.
+    const descuento = Math.min(100, Math.max(0, Number(d.descuento) || 0));
+    const precio = descuento ? Number((original * (1 - descuento / 100)).toFixed(2)) : original;
+
+    // mismo producto y mismo precio -> se suma la cantidad en la misma línea
+    const existente = this.#lineas.find(
+      (l) => (l.productoId || l.nombre) === (productoId || nombre) && l.precio === precio
+    );
+    if (existente) {
+      existente.cantidad += cantidad;
+    } else {
+      this.#lineas.push({
+        productoId,
+        nombre,
+        precio,
+        cantidad,
+        ...(descuento ? { precioOriginal: original, descuento } : {}),
+      });
+    }
     this.#flash = `Añadido: ${d.nombre || d.productoId}`;
     this.#pintar();
   };
@@ -89,10 +114,12 @@ class UcjcCompra extends HTMLElement {
 
     const items = this.#lineas.length
       ? this.#lineas
-          .map(
-            (l) =>
-              `<li>${l.nombre} × ${l.cantidad} · ${(l.precio * l.cantidad).toFixed(2)} €</li>`
-          )
+          .map((l) => {
+            const unit = l.descuento
+              ? `<span class="tachado">${l.precioOriginal.toFixed(2)} €</span><span class="dto">-${l.descuento}%</span><span class="desc">${l.precio.toFixed(2)} €</span>`
+              : `${l.precio.toFixed(2)} €`;
+            return `<li class="linea"><span class="nombre">${l.nombre}</span><span class="unit">${l.cantidad} × ${unit}</span><span class="sub">${(l.precio * l.cantidad).toFixed(2)} €</span></li>`;
+          })
           .join('')
       : '<li><i>No puedes confirmar el pedido porque el carrito está vacío. Añade al menos un producto desde Descubrimiento o usa el botón «+ producto demo».</i></li>';
 
@@ -101,7 +128,7 @@ class UcjcCompra extends HTMLElement {
       <div class="box">
         <h2>Compra</h2>
         <p class="meta">${ses}</p>
-        <ul>${items}</ul>
+        <ul class="lineas">${items}</ul>
         <p><b>Total: ${this.#total().toFixed(2)} €</b></p>
         <div class="row">
           <button type="button" data-a="demo" class="sec">+ producto demo</button>
