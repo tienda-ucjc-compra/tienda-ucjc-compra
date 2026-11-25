@@ -24,7 +24,8 @@ const css = `
   .tachado { display:block; text-decoration:line-through; color:#5b677a; }
   .desc { color:#c62828; font-weight:700; }
   .dto { background:#c62828; color:#fff; font-weight:700; font-size:.8rem; border-radius:4px; padding:0 .3rem; margin-left:.35rem; }
-  .ctrl { display:flex; gap:.25rem; }
+  .ctrl { display:flex; gap:.25rem; align-items:center; }
+  .cant { min-width:1.6rem; text-align:center; font-weight:700; }
   .ctrl button { padding:.1rem .5rem; min-width:1.8rem; background:#e7ecf3; color:#152033; }
   .ctrl button.quitar { background:transparent; color:#c62828; font-weight:700; }
   .sub { text-align:right; font-weight:700; white-space:nowrap; }
@@ -159,7 +160,7 @@ class UcjcCompra extends HTMLElement {
               ? `<span class="tachado">${l.precioOriginal.toFixed(2)} €</span>${l.cantidad} × <span class="desc">${l.precio.toFixed(2)} €</span><span class="dto">-${l.descuento}%</span>`
               : `${l.cantidad} × ${l.precio.toFixed(2)} €`;
             // con una sola unidad el − se desactiva (para quitarla está la X)
-            const masMenos = `<button type="button" data-a="menos" data-i="${i}" title="Quitar una" ${l.cantidad > 1 ? '' : 'disabled'}>−</button><button type="button" data-a="mas" data-i="${i}" title="Añadir una">+</button>`;
+            const masMenos = `<button type="button" data-a="menos" data-i="${i}" title="Quitar una" ${l.cantidad > 1 ? '' : 'disabled'}>−</button><span class="cant">${l.cantidad}</span><button type="button" data-a="mas" data-i="${i}" title="Añadir una">+</button>`;
             return `<li class="linea"><span class="nombre">${escapar(l.nombre)}</span><span class="unit">${unit}</span><span class="sub">${(l.precio * l.cantidad).toFixed(2)} €</span><span class="ctrl">${masMenos}<button type="button" class="quitar" data-a="quitar" data-i="${i}" title="Eliminar del carrito">X</button></span></li>`;
           })
           .join('')
