@@ -97,7 +97,10 @@ describe('ucjc-compra', () => {
     const root = el.shadowRoot;
     // con una unidad el − está desactivado y el + sube a 2
     expect(root.querySelectorAll('li.linea')[0].querySelector('[data-a="menos"]').disabled).toBe(true);
+    expect(root.querySelectorAll('li.linea')[0].querySelector('.cant').textContent).toBe('1');
     root.querySelectorAll('li.linea')[0].querySelector('[data-a="mas"]').click();
+    expect(root.querySelectorAll('li.linea')[0].querySelector('.cant').textContent).toBe('2');
+    expect(root.querySelectorAll('li.linea')[0].querySelector('.unit').textContent).toBe('2 × 2.00 €');
     expect(root.querySelectorAll('li.linea')[0].querySelector('.sub').textContent).toBe('4.00 €');
     root.querySelectorAll('li.linea')[0].querySelector('[data-a="menos"]').click();
     expect(root.querySelectorAll('li.linea')[0].querySelector('.sub').textContent).toBe('2.00 €');
