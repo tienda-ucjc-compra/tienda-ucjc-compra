@@ -4,12 +4,16 @@ var e = "ucjc:descubrimiento:anadir-al-carrito@1", t = "ucjc:identidad:sesion-ca
 	#t = null;
 	#n = "";
 	#r = (e) => {
-		let t = e.detail || {};
-		this.#e.push({
-			productoId: String(t.productoId ?? ""),
-			nombre: String(t.nombre ?? "Producto"),
-			precio: Number(t.precio) || 0,
-			cantidad: Math.max(1, Number(t.cantidad) || 1)
+		let t = e.detail || {}, n = String(t.productoId ?? ""), r = String(t.nombre ?? "Producto"), i = Number(t.precio) || 0, a = Math.max(1, Number(t.cantidad) || 1), o = Math.min(100, Math.max(0, Number(t.descuento) || 0)), s = o ? Number((i * (1 - o / 100)).toFixed(2)) : i, c = this.#e.find((e) => (e.productoId || e.nombre) === (n || r) && e.precio === s);
+		c ? c.cantidad += a : this.#e.push({
+			productoId: n,
+			nombre: r,
+			precio: s,
+			cantidad: a,
+			...o ? {
+				precioOriginal: i,
+				descuento: o
+			} : {}
 		}), this.#n = `Añadido: ${t.nombre || t.productoId}`, this.#s();
 	};
 	#i = (e) => {
@@ -37,51 +41,51 @@ var e = "ucjc:descubrimiento:anadir-al-carrito@1", t = "ucjc:identidad:sesion-ca
 		window.dispatchEvent(new CustomEvent("ucjc:compra:pedido-confirmado@1", { detail: n })), this.#e = [], this.#n = `Pedido ${e} confirmado (${n.total.toFixed(2)} €)`, this.#s();
 	}
 	#s() {
-		let e = this.#t ? `Sesión: ${this.#t}` : "Sin sesión — inicia sesión en Identidad para confirmar", t = this.#e.length ? this.#e.map((e) => `<tr><td>${e.nombre}</td><td class="r">${e.cantidad}</td><td class="r">${(e.precio * e.cantidad).toFixed(2)} €</td></tr>`).join("") : "<tr><td colspan=\"3\" class=\"vacio\">Carrito vacío — espera un «añadir» de Descubrimiento o usa el botón demo</td></tr>";
+		let e = this.#t ? `Sesión: <b>${this.#t}</b>` : "<span class=\"aviso-error\">Inicio de sesión necesario para realizar el pedido</span>", t = this.#e.length ? this.#e.map((e) => {
+			let t = e.descuento ? `<span class="tachado">${e.precioOriginal.toFixed(2)} €</span><span class="dto">-${e.descuento}%</span><span class="desc">${e.precio.toFixed(2)} €</span>` : `${e.precio.toFixed(2)} €`;
+			return `<li class="linea"><span class="nombre">${e.nombre}</span><span class="unit">${e.cantidad} × ${t}</span><span class="sub">${(e.precio * e.cantidad).toFixed(2)} €</span></li>`;
+		}).join("") : "<li><i>No puedes confirmar el pedido porque el carrito está vacío. Añade al menos un producto desde Descubrimiento o usa el botón «+ producto demo».</i></li>";
 		this.shadowRoot.innerHTML = `
       <style>
-  :host { display:block; font:16px/1.5 Arial,Helvetica,sans-serif; color:#222; }
-  header { background:#1f3a63; color:#fff; padding:14px 24px; display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; }
-  header h1 { margin:0; font-size:20px; }
-  header span { font-size:14px; }
-  main { max-width:640px; margin:28px auto; padding:0 16px; }
-  h2 { font-size:20px; margin:0 0 4px; }
-  .sub { margin:0 0 16px; color:#555; font-size:14px; }
-  .box { background:#fff; border:1px solid #ccc; border-radius:10px; padding:16px; }
-  .lista { height:180px; overflow-y:auto; border-bottom:1px solid #eee; }
-  .lista::-webkit-scrollbar { width:10px; }
-  .lista::-webkit-scrollbar-track { background:#f0f0f0; border-radius:5px; }
-  .lista::-webkit-scrollbar-thumb { background:#b5bcc8; border-radius:5px; }
-  table { width:100%; border-collapse:collapse; }
-  th { position:sticky; top:0; background:#fff; text-align:left; font-size:13px; color:#555; border-bottom:1px solid #d5d9e0; padding:6px 4px; }
-  td { padding:8px 4px; border-bottom:1px solid #eee; }
-  .r { text-align:right; }
-  .vacio { color:#777; font-style:italic; }
-  .total { text-align:right; font-size:18px; margin:14px 0; }
-  .row { display:flex; flex-wrap:wrap; gap:8px; }
-  button { font:inherit; font-size:15px; padding:8px 16px; border:1px solid #c4c4c4; border-radius:8px; background:#ececec; color:#222; cursor:pointer; }
-  button.main { background:#1f3a63; color:#fff; border-color:#1f3a63; margin-left:auto; }
+  :host { display:block; font:15px/1.45 system-ui,sans-serif; color:#152033; }
+  .box { background:#f7f9fc; border:1px solid #d7dee8; border-radius:12px; padding:1rem 1.1rem; }
+  h2 { margin:0 0 .35rem; font-size:1.1rem; }
+  .meta { color:#5b677a; font-size:.85rem; margin-bottom:.75rem; }
+  ul { margin:.4rem 0 .8rem; padding-left:1.1rem; }
+  li { margin:.2rem 0; }
+  li.linea { list-style:none; display:grid; grid-template-columns:1fr auto auto; gap:.2rem .9rem; align-items:start; margin:.55rem 0; }
+  ul.lineas { padding-left:0; }
+  .nombre { word-break:break-word; }
+  .unit { text-align:right; white-space:nowrap; }
+  .tachado { text-decoration:line-through; color:#5b677a; }
+  .dto { color:#c62828; font-weight:700; margin-left:.35rem; }
+  .desc { display:block; }
+  .sub { text-align:right; font-weight:700; white-space:nowrap; }
+  .row { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; }
+  button { font:inherit; border:0; border-radius:8px; padding:.45rem .85rem; cursor:pointer; background:#0f3d7a; color:#fff; }
+  button.sec { background:#e7ecf3; color:#152033; }
   button:disabled { opacity:.45; cursor:not-allowed; }
-  .ok { margin:12px 0 0; font-size:14px; color:#1d6b2f; min-height:1.2em; }
+  .ok { color:#0b6b3a; font-size:.85rem; min-height:1.2em; }
+
+  .aviso-error {
+    color:#c62828;
+    font-weight:700;
+  }
 </style>
-      <header><h1>UCJC Compra</h1><span>${e}</span></header>
-      <main>
-        <h2>Carrito</h2>
-        <p class="sub">Revisa los productos antes de confirmar el pedido.</p>
-        <div class="box">
-          <div class="lista"><table>
-            <tr><th>Producto</th><th class="r">Cantidad</th><th class="r">Precio</th></tr>
-            ${t}
-          </table></div>
-          <p class="total"><b>Total: ${this.#a().toFixed(2)} €</b></p>
-          <div class="row">
-            <button type="button" data-a="demo">+ Producto demo</button>
-            <button type="button" data-a="vaciar" ${this.#e.length ? "" : "disabled"}>Vaciar</button>
-            <button type="button" data-a="ok" class="main" ${this.#t && this.#e.length ? "" : "disabled"}>Confirmar pedido</button>
-          </div>
-          <p class="ok">${this.#n}</p>
+      <div class="box">
+        <h2>Compra</h2>
+        <p class="meta">${e}</p>
+        <ul class="lineas">${t}</ul>
+        <p><b>Total: ${this.#a().toFixed(2)} €</b></p>
+        <div class="row">
+          <button type="button" data-a="demo" class="sec">+ producto demo</button>
+          <button type="button" data-a="ok" ${this.#t && this.#e.length ? "" : "disabled"}>
+            Confirmar pedido
+          </button>
+          <button type="button" data-a="vaciar" class="sec" ${this.#e.length ? "" : "disabled"}>Vaciar</button>
         </div>
-      </main>`, this.shadowRoot.querySelector("[data-a=\"demo\"]").onclick = () => {
+        <p class="ok">${this.#n}</p>
+      </div>`, this.shadowRoot.querySelector("[data-a=\"demo\"]").onclick = () => {
 			this.#r({ detail: {
 				productoId: "prod-demo",
 				nombre: "Camiseta UCJC (demo)",
