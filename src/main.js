@@ -158,10 +158,8 @@ class UcjcCompra extends HTMLElement {
             const unit = l.descuento
               ? `<span class="tachado">${l.precioOriginal.toFixed(2)} €</span>${l.cantidad} × <span class="desc">${l.precio.toFixed(2)} €</span><span class="dto">-${l.descuento}%</span>`
               : `${l.cantidad} × ${l.precio.toFixed(2)} €`;
-            // − y + solo cuando hay más de una unidad; la X siempre
-            const masMenos = l.cantidad > 1
-              ? `<button type="button" data-a="menos" data-i="${i}" title="Quitar una">−</button><button type="button" data-a="mas" data-i="${i}" title="Añadir una">+</button>`
-              : '';
+            // con una sola unidad el − se desactiva (para quitarla está la X)
+            const masMenos = `<button type="button" data-a="menos" data-i="${i}" title="Quitar una" ${l.cantidad > 1 ? '' : 'disabled'}>−</button><button type="button" data-a="mas" data-i="${i}" title="Añadir una">+</button>`;
             return `<li class="linea"><span class="nombre">${escapar(l.nombre)}</span><span class="unit">${unit}</span><span class="sub">${(l.precio * l.cantidad).toFixed(2)} €</span><span class="ctrl">${masMenos}<button type="button" class="quitar" data-a="quitar" data-i="${i}" title="Eliminar del carrito">X</button></span></li>`;
           })
           .join('')

@@ -95,8 +95,12 @@ describe('ucjc-compra', () => {
     anadir({ productoId: 'a', nombre: 'A', precio: 2, cantidad: 1 });
     anadir({ productoId: 'b', nombre: 'B', precio: 3, cantidad: 3 });
     const root = el.shadowRoot;
-    // con una unidad solo hay X
-    expect(root.querySelectorAll('li.linea')[0].querySelector('[data-a="mas"]')).toBeNull();
+    // con una unidad el − está desactivado y el + sube a 2
+    expect(root.querySelectorAll('li.linea')[0].querySelector('[data-a="menos"]').disabled).toBe(true);
+    root.querySelectorAll('li.linea')[0].querySelector('[data-a="mas"]').click();
+    expect(root.querySelectorAll('li.linea')[0].querySelector('.sub').textContent).toBe('4.00 €');
+    root.querySelectorAll('li.linea')[0].querySelector('[data-a="menos"]').click();
+    expect(root.querySelectorAll('li.linea')[0].querySelector('.sub').textContent).toBe('2.00 €');
 
     root.querySelectorAll('li.linea')[1].querySelector('[data-a="mas"]').click();
     expect(root.querySelectorAll('li.linea')[1].querySelector('.sub').textContent).toBe('12.00 €');
