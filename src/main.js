@@ -1,7 +1,14 @@
 
+import { REBAJAS, precioRebajado } from './rebajas.js';
+
 const EVT_ADD = 'ucjc:descubrimiento:anadir-al-carrito@1';
 const EVT_SES = 'ucjc:identidad:sesion-cambiada@1';
 const EVT_PED = 'ucjc:compra:pedido-confirmado@1';
+const EVT_CAMPANA = 'ucjc:descubrimiento:campana-cambiada@1';
+
+// los textos que llegan por eventos se escapan antes de meterlos en el HTML
+const escapar = (t) =>
+  String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
 const css = `
   :host { display:block; font:15px/1.45 system-ui,sans-serif; color:#152033; }
@@ -10,19 +17,40 @@ const css = `
   .meta { color:#5b677a; font-size:.85rem; margin-bottom:.75rem; }
   ul { margin:.4rem 0 .8rem; padding-left:1.1rem; }
   li { margin:.2rem 0; }
-  li.linea { list-style:none; display:grid; grid-template-columns:1fr auto auto; gap:.2rem .9rem; align-items:start; margin:.55rem 0; }
+  li.linea { list-style:none; display:grid; grid-template-columns:1fr auto auto auto; gap:.2rem .9rem; align-items:start; margin:.55rem 0; }
   ul.lineas { padding-left:0; }
   .nombre { word-break:break-word; }
   .unit { text-align:right; white-space:nowrap; }
-  .tachado { text-decoration:line-through; color:#5b677a; }
-  .dto { color:#c62828; font-weight:700; margin-left:.35rem; }
-  .desc { display:block; }
+  .tachado { display:block; text-decoration:line-through; color:#5b677a; }
+  .desc { color:#c62828; font-weight:700; }
+  .dto { background:#c62828; color:#fff; font-weight:700; font-size:.8rem; border-radius:4px; padding:0 .3rem; margin-left:.35rem; }
+  .ctrl { display:flex; gap:.25rem; }
+  .ctrl button { padding:.1rem .5rem; min-width:1.8rem; background:#e7ecf3; color:#152033; }
+  .ctrl button.quitar { background:transparent; color:#c62828; font-weight:700; }
   .sub { text-align:right; font-weight:700; white-space:nowrap; }
   .row { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; }
   button { font:inherit; border:0; border-radius:8px; padding:.45rem .85rem; cursor:pointer; background:#0f3d7a; color:#fff; }
   button.sec { background:#e7ecf3; color:#152033; }
   button:disabled { opacity:.45; cursor:not-allowed; }
   .ok { color:#0b6b3a; font-size:.85rem; min-height:1.2em; }
+
+  /* modo Black Friday: se activa al recibir campana-cambiada@1 con activa=true */
+  .box.bf { background:#111; border:2px solid #f5c400; color:#f2f2f2; }
+  .bf h2 { color:#f5c400; text-transform:uppercase; letter-spacing:.04em; }
+  .bf .meta, .bf .tachado { color:#b8b8b8; }
+  .bf .desc { color:#ff5a4f; }
+  .bf .dto { background:#ff5a4f; color:#111; }
+  .bf .ctrl button { background:#333; color:#f2f2f2; }
+  .bf .ctrl button.quitar { background:transparent; color:#ff5a4f; }
+  .bf .ok { color:#7ddc9b; }
+  .bf .aviso-error { color:#ff5a4f; }
+  .bf .total { color:#f5c400; font-size:1.1rem; }
+  .bf button { background:#f5c400; color:#111; font-weight:700; }
+  .bf button.sec { background:#333; color:#f2f2f2; }
+  .campana { display:flex; justify-content:space-between; align-items:center; gap:.5rem; flex-wrap:wrap;
+    background:#f5c400; color:#111; border-radius:8px; padding:.5rem .8rem; margin:0 0 .75rem; }
+  .campana b { font-size:1rem; text-transform:uppercase; }
+  .campana span { font-size:.85rem; }
 
   .aviso-error {
     color:#c62828;
@@ -34,16 +62,18 @@ class UcjcCompra extends HTMLElement {
   #lineas = [];
   #usuarioId = null;
   #flash = '';
+  #campana = null;
 
   #onAdd = (e) => {
     const d = e.detail || {};
     const productoId = String(d.productoId ?? '');
     const nombre = String(d.nombre ?? 'Producto');
-    const original = Number(d.precio) || 0;
+    const precio = Number(d.precio) || 0;
     const cantidad = Math.max(1, Number(d.cantidad) || 1);
-    // descuento opcional en % (0-100). `precio` llega siempre como precio original.
-    const descuento = Math.min(100, Math.max(0, Number(d.descuento) || 0));
-    const precio = descuento ? Number((original * (1 - descuento / 100)).toFixed(2)) : original;
+    // en Black Friday el precio llega ya rebajado: si coincide con la rebaja
+    // del catálogo guardamos el original y el % para enseñarlos
+    const rebaja = this.#campana ? REBAJAS[productoId] : null;
+    const enOferta = rebaja && precioRebajado(rebaja.precioOriginal, rebaja.descuento) === precio;
 
     // mismo producto y mismo precio -> se suma la cantidad en la misma línea
     const existente = this.#lineas.find(
@@ -57,7 +87,7 @@ class UcjcCompra extends HTMLElement {
         nombre,
         precio,
         cantidad,
-        ...(descuento ? { precioOriginal: original, descuento } : {}),
+        ...(enOferta ? rebaja : {}),
       });
     }
     this.#flash = `Añadido: ${d.nombre || d.productoId}`;
@@ -70,16 +100,25 @@ class UcjcCompra extends HTMLElement {
     this.#pintar();
   };
 
+  #onCampana = (e) => {
+    const d = e.detail || {};
+    this.#campana = d.activa ? { codigo: d.codigo, etiqueta: d.etiqueta || 'Campaña activa' } : null;
+    this.#pintar();
+  };
+
   connectedCallback() {
-    this.attachShadow({ mode: 'open' });
+    // si el shell quita y vuelve a poner el elemento, el shadowRoot ya existe
+    if (!this.shadowRoot) this.attachShadow({ mode: 'open' });
     window.addEventListener(EVT_ADD, this.#onAdd);
     window.addEventListener(EVT_SES, this.#onSes);
+    window.addEventListener(EVT_CAMPANA, this.#onCampana);
     this.#pintar();
   }
 
   disconnectedCallback() {
     window.removeEventListener(EVT_ADD, this.#onAdd);
     window.removeEventListener(EVT_SES, this.#onSes);
+    window.removeEventListener(EVT_CAMPANA, this.#onCampana);
   }
 
   #total() {
@@ -90,7 +129,8 @@ class UcjcCompra extends HTMLElement {
     if (!this.#usuarioId || !this.#lineas.length) return;
 
     const pedidoId = `PED-${Date.now()}`;
-    const lineas = this.#lineas.map((l) => ({ ...l }));
+    // solo los 4 campos del contrato pedido-confirmado@1
+    const lineas = this.#lineas.map(({ productoId, nombre, precio, cantidad }) => ({ productoId, nombre, precio, cantidad }));
 
     const detail = {
       pedidoId,
@@ -109,27 +149,30 @@ class UcjcCompra extends HTMLElement {
 
   #pintar() {
     const ses = this.#usuarioId
-      ? `Sesión: <b>${this.#usuarioId}</b>`
+      ? `Sesión: <b>${escapar(this.#usuarioId)}</b>`
       : '<span class="aviso-error">Inicio de sesión necesario para realizar el pedido</span>';
 
     const items = this.#lineas.length
       ? this.#lineas
-          .map((l) => {
+          .map((l, i) => {
             const unit = l.descuento
-              ? `<span class="tachado">${l.precioOriginal.toFixed(2)} €</span><span class="dto">-${l.descuento}%</span><span class="desc">${l.precio.toFixed(2)} €</span>`
-              : `${l.precio.toFixed(2)} €`;
-            return `<li class="linea"><span class="nombre">${l.nombre}</span><span class="unit">${l.cantidad} × ${unit}</span><span class="sub">${(l.precio * l.cantidad).toFixed(2)} €</span></li>`;
+              ? `<span class="tachado">${l.precioOriginal.toFixed(2)} €</span>${l.cantidad} × <span class="desc">${l.precio.toFixed(2)} €</span><span class="dto">-${l.descuento}%</span>`
+              : `${l.cantidad} × ${l.precio.toFixed(2)} €`;
+            // con una sola unidad el − se desactiva (para quitarla está la X)
+            const masMenos = `<button type="button" data-a="menos" data-i="${i}" title="Quitar una" ${l.cantidad > 1 ? '' : 'disabled'}>−</button><button type="button" data-a="mas" data-i="${i}" title="Añadir una">+</button>`;
+            return `<li class="linea"><span class="nombre">${escapar(l.nombre)}</span><span class="unit">${unit}</span><span class="sub">${(l.precio * l.cantidad).toFixed(2)} €</span><span class="ctrl">${masMenos}<button type="button" class="quitar" data-a="quitar" data-i="${i}" title="Eliminar del carrito">X</button></span></li>`;
           })
           .join('')
       : '<li><i>No puedes confirmar el pedido porque el carrito está vacío. Añade al menos un producto desde Descubrimiento o usa el botón «+ producto demo».</i></li>';
 
     this.shadowRoot.innerHTML = `
       <style>${css}</style>
-      <div class="box">
+      <div class="box${this.#campana ? ' bf' : ''}">
         <h2>Compra</h2>
+        ${this.#campana ? `<p class="campana"><b>${escapar(this.#campana.etiqueta)}</b><span>Los precios del carrito ya llevan la rebaja</span></p>` : ''}
         <p class="meta">${ses}</p>
         <ul class="lineas">${items}</ul>
-        <p><b>Total: ${this.#total().toFixed(2)} €</b></p>
+        <p class="total"><b>Total: ${this.#total().toFixed(2)} €</b></p>
         <div class="row">
           <button type="button" data-a="demo" class="sec">+ producto demo</button>
           <button type="button" data-a="ok" ${this.#usuarioId && this.#lineas.length ? '' : 'disabled'}>
@@ -137,7 +180,7 @@ class UcjcCompra extends HTMLElement {
           </button>
           <button type="button" data-a="vaciar" class="sec" ${this.#lineas.length ? '' : 'disabled'}>Vaciar</button>
         </div>
-        <p class="ok">${this.#flash}</p>
+        <p class="ok">${escapar(this.#flash)}</p>
       </div>`;
 
     this.shadowRoot.querySelector('[data-a="demo"]').onclick = () => {
@@ -152,6 +195,20 @@ class UcjcCompra extends HTMLElement {
     };
 
     this.shadowRoot.querySelector('[data-a="ok"]').onclick = () => this.#confirmar();
+
+    this.shadowRoot.querySelector('ul.lineas').onclick = (e) => {
+      const b = e.target.closest('button[data-i]');
+      if (!b) return;
+      const l = this.#lineas[Number(b.dataset.i)];
+      if (!l) return;
+      if (b.dataset.a === 'mas') l.cantidad += 1;
+      if (b.dataset.a === 'menos') l.cantidad = Math.max(1, l.cantidad - 1);
+      if (b.dataset.a === 'quitar') {
+        this.#lineas.splice(Number(b.dataset.i), 1);
+        this.#flash = `Eliminado: ${l.nombre}`;
+      }
+      this.#pintar();
+    };
 
     this.shadowRoot.querySelector('[data-a="vaciar"]').onclick = () => {
       this.#lineas = [];
