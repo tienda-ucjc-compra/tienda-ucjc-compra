@@ -70,7 +70,7 @@ describe('ucjc-compra', () => {
     expect(li.querySelector('.dto').textContent).toBe('-20%');
     expect(li.querySelector('.desc').textContent).toBe('8.00 €');
     expect(li.querySelector('.sub').textContent).toBe('24.00 €');
-    expect(el.shadowRoot.querySelector('.box > p b').textContent).toBe('Total: 24.00 €');
+    expect(el.shadowRoot.querySelector('.total b').textContent).toBe('Total: 24.00 €');
   });
 
   it('el pedido lleva exactamente los campos de pedido-confirmado@1', () => {
@@ -104,9 +104,11 @@ describe('ucjc-compra', () => {
         })
       );
     campana(true);
-    expect(el.shadowRoot.querySelector('.campana').textContent).toBe('Black Friday UCJC');
+    expect(el.shadowRoot.querySelector('.campana b').textContent).toBe('Black Friday UCJC');
+    expect(el.shadowRoot.querySelector('.box').classList.contains('bf')).toBe(true);
     campana(false);
     expect(el.shadowRoot.querySelector('.campana')).toBeNull();
+    expect(el.shadowRoot.querySelector('.box').classList.contains('bf')).toBe(false);
   });
 
   it('escapa el nombre del producto', () => {

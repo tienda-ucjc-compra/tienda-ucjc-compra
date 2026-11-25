@@ -27,8 +27,22 @@ const css = `
   button { font:inherit; border:0; border-radius:8px; padding:.45rem .85rem; cursor:pointer; background:#0f3d7a; color:#fff; }
   button.sec { background:#e7ecf3; color:#152033; }
   button:disabled { opacity:.45; cursor:not-allowed; }
-  .campana { background:#c62828; color:#fff; font-weight:700; border-radius:8px; padding:.4rem .75rem; margin:0 0 .75rem; }
   .ok { color:#0b6b3a; font-size:.85rem; min-height:1.2em; }
+
+  /* modo Black Friday: se activa al recibir campana-cambiada@1 con activa=true */
+  .box.bf { background:#111; border:2px solid #f5c400; color:#f2f2f2; }
+  .bf h2 { color:#f5c400; text-transform:uppercase; letter-spacing:.04em; }
+  .bf .meta, .bf .tachado { color:#b8b8b8; }
+  .bf .dto { color:#ff5a4f; }
+  .bf .ok { color:#7ddc9b; }
+  .bf .aviso-error { color:#ff5a4f; }
+  .bf .total { color:#f5c400; font-size:1.1rem; }
+  .bf button { background:#f5c400; color:#111; font-weight:700; }
+  .bf button.sec { background:#333; color:#f2f2f2; }
+  .campana { display:flex; justify-content:space-between; align-items:center; gap:.5rem; flex-wrap:wrap;
+    background:#f5c400; color:#111; border-radius:8px; padding:.5rem .8rem; margin:0 0 .75rem; }
+  .campana b { font-size:1rem; text-transform:uppercase; }
+  .campana span { font-size:.85rem; }
 
   .aviso-error {
     color:#c62828;
@@ -142,12 +156,12 @@ class UcjcCompra extends HTMLElement {
 
     this.shadowRoot.innerHTML = `
       <style>${css}</style>
-      <div class="box">
+      <div class="box${this.#campana ? ' bf' : ''}">
         <h2>Compra</h2>
-        ${this.#campana ? `<p class="campana">${escapar(this.#campana.etiqueta)}</p>` : ''}
+        ${this.#campana ? `<p class="campana"><b>${escapar(this.#campana.etiqueta)}</b><span>Los precios del carrito ya llevan la rebaja</span></p>` : ''}
         <p class="meta">${ses}</p>
         <ul class="lineas">${items}</ul>
-        <p><b>Total: ${this.#total().toFixed(2)} €</b></p>
+        <p class="total"><b>Total: ${this.#total().toFixed(2)} €</b></p>
         <div class="row">
           <button type="button" data-a="demo" class="sec">+ producto demo</button>
           <button type="button" data-a="ok" ${this.#usuarioId && this.#lineas.length ? '' : 'disabled'}>
